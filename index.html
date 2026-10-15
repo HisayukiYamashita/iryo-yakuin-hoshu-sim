@@ -84,6 +84,7 @@
   #printBtn{width:auto; margin:0; background:#fff; color:var(--ink); border:1.5px solid var(--ink); font-weight:700; padding:7px 14px; flex-shrink:0;}
   #printBtn:hover{background:var(--accent);}
   @media print{
+    #kaikeiImport{display:none !important;}
     *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
     header{padding:0 0 10px; border-top-width:4px;}
     header h1{font-size:1.5rem;}
@@ -114,6 +115,10 @@
 <main>
 <div class="grid">
   <div>
+    <details class="ki-wrap" id="kaikeiImport">
+      <summary>会計データから入れる<small>freee・弥生・マネーフォワード</small></summary>
+      <div id="kaikeiImportBox">取り込み部品を読み込んでいます…</div>
+    </details>
     <div class="card">
       <h2>条件を入力</h2>
       <label>年収（額面・円）
@@ -411,6 +416,26 @@ document.getElementById('monthlyRange').addEventListener('input', e => {
 });
 applyKokuhoDefaults();
 render();
+</script>
+<script type="module" id="kaikei-import">
+// 会計データの取り込み（共通部品 okanefuyasu.net/shared/kaikei-import.js）。
+// 計算ロジックには触らない。取り込んだ数字を入力欄に入れて、ページの再計算を動かすだけ。
+const box = document.getElementById('kaikeiImportBox');
+try {
+  const K = await import('https://okanefuyasu.net/shared/kaikei-import.js');
+  const kikan = (d) => (d.elapsed && d.elapsed < (d.months || 12) ? `（${d.elapsed}か月分を12か月に換算）` : '');
+  K.mountImporter(box, {
+    fields: ['yakuin_hoshu'],
+    onData(d) {
+      const v = K.annualize(d.values.yakuin_hoshu, d.elapsed, d.months);
+      if (!v) throw new Error('役員報酬が見つかりません');
+      K.setInput('gross', v);
+      return `役員報酬 ${K.fmtYen(v)}${kikan(d)}を「年収」に入れました。理事が複数いるときは、この方の分に直してください`;
+    },
+  });
+} catch (e) {
+  box.textContent = '取り込み部品を読み込めませんでした。インターネットにつながっているか確認してください（手入力はそのまま使えます）。';
+}
 </script>
 </body>
 </html>
